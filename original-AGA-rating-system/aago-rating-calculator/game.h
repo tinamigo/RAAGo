@@ -1,7 +1,7 @@
 /*************************************************************************************
 
 	Copyright 2010 Philip Waldron
-	
+
     This file is part of BayRate.
 
     BayRate is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
     You should have received a copy of the GNU General Public License
     along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
-    
+
 ***************************************************************************************/
 
 #pragma once
@@ -31,7 +31,7 @@ public:
 	bool whiteWins;			// True if White wins
 	int white;				// Player index of White
 	int black;				// Player index of Black
-	void calc_handicapeqv();
+	void calc_handicapeqv(float parameters[]);
 	double handicapeqv;		// Equivalent rating adjustment based on handicap and komi
 	double sigma_px;
 };

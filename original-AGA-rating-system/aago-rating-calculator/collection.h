@@ -1,7 +1,7 @@
 /*************************************************************************************
 
 	Copyright 2010 Philip Waldron
-	
+
     This file is part of BayRate.
 
     BayRate is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
     You should have received a copy of the GNU General Public License
     along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
-    
+
 ***************************************************************************************/
 
 #pragma once
@@ -42,20 +42,20 @@ public:
 	map<int, player> playerHash;
 	vector<game> gameList;
 	std::string tournamentName;
-	
+
 	double calc_pt(const gsl_vector *v);
 	double calc_pt_df(const gsl_vector *x, gsl_vector *df);
 	void calc_sigma();
-	void calc_sigma2();	
-	int calc_ratings();
-	int calc_ratings_fdf();
+	void calc_sigma2();
+	int calc_ratings(float parameters[]);
+	int calc_ratings_fdf(float parameters[]);
 
 	void reset();
-	void initSeeding(map<int, tdListEntry> &tdList);
-	void findImprobables(map<int, tdListEntry> &tdList);
-		
+	void initSeeding(map<int, tdListEntry> &tdList, float parameters[]);
+	void findImprobables(map<int, tdListEntry> &tdList, float parameters[]);
+
 private:
 	double PI;
 	const gsl_rng_type *T;
-	gsl_rng *r;	
+	gsl_rng *r;
 };

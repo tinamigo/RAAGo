@@ -70,5 +70,5 @@ void game::calc_handicapeqv(float parameters[]) {
 		// 		sigma_px += 1.43614;
 		// 		break;
 		// }
-	}
+	
 }
