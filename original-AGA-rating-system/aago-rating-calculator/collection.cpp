@@ -1,7 +1,7 @@
 /*************************************************************************************
 
 	Copyright 2010 Philip Waldron
-	
+
     This file is part of BayRate.
 
     BayRate is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
     You should have received a copy of the GNU General Public License
     along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
-    
+
 ***************************************************************************************/
 
 #include <iostream>
@@ -60,16 +60,16 @@ void my_new_df (const gsl_vector *v, void *c, gsl_vector *df) {
 void my_new_fdf (const gsl_vector *v, void *c, double *f, gsl_vector *df) {
 	*f = my_new_f (v, c);
 	my_new_df(v, c, df);
-	
+
 
 
 }
 
 collection::collection(void)
-{	
+{
 	// Set necessary constants
 	PI = 4.0 * atan(1.0);
-	
+
 	// Initialize a random number generator
 	T = gsl_rng_default;
 	r = gsl_rng_alloc(T);
@@ -87,9 +87,9 @@ void collection::reset() {
 
 /****************************************************************
 
-calc_sigma2 () 
+calc_sigma2 ()
 
-Calculate the new sigmas for players.  This function uses numerical 
+Calculate the new sigmas for players.  This function uses numerical
 integration technique to calculate the variances directly.
 
 *****************************************************************/
@@ -97,33 +97,33 @@ void collection::calc_sigma2() {
 	map<int, double> newSigma;
 	double sumX2W, sumW;
 	double x, r, z, w;
-		
-	for (map<int, player>::iterator It=playerHash.begin(); It!=playerHash.end(); It++) {		
+
+	for (map<int, player>::iterator It=playerHash.begin(); It!=playerHash.end(); It++) {
 		sumX2W = 0;
 		sumW   = 0;
-		
+
 		for (int i=0; i<100; i++) {
 			x = -5.0*It->second.sigma - It->second.sigma/20.0 + i*It->second.sigma/10;
-			r = It->second.rating + x;  			
+			r = It->second.rating + x;
 			z = (r - It->second.seed)/It->second.sigma;
 			w = exp(-z*z/2)/sqrt(2*PI);
-	
+
 			// Inefficient, but fast enough for typical AGA cases.  A more advanced game indexing
-			// data structure would be appropriate for larger tournaments 
+			// data structure would be appropriate for larger tournaments
 			for (vector<game>::iterator gameIt=gameList.begin(); gameIt!=gameList.end(); gameIt++) {
 				if (gameIt->white == It->second.id) {
 					double rd = r - playerHash[gameIt->black].rating - gameIt->handicapeqv;
 					if (gameIt->whiteWins)
 						w *= gsl_sf_erfc(-rd/gameIt->sigma_px/sqrt(2.0));
 					else
-						w *= gsl_sf_erfc(rd/gameIt->sigma_px/sqrt(2.0));				
-				}					
+						w *= gsl_sf_erfc(rd/gameIt->sigma_px/sqrt(2.0));
+				}
 				else if (gameIt->black == It->second.id) {
 					double rd = playerHash[gameIt->white].rating - r - gameIt->handicapeqv;
-					if (gameIt->whiteWins)	
+					if (gameIt->whiteWins)
 						w *= gsl_sf_erfc(-rd/gameIt->sigma_px/sqrt(2.0));
 					else
-						w *= gsl_sf_erfc(rd/gameIt->sigma_px/sqrt(2.0));				
+						w *= gsl_sf_erfc(rd/gameIt->sigma_px/sqrt(2.0));
 				}
 			}
 			sumX2W += x*x*w;
@@ -134,20 +134,20 @@ void collection::calc_sigma2() {
 	}
 
 	// Copy over the new sigmas now that all the calculations are done
-	for (map<int, player>::iterator It=playerHash.begin(); It!=playerHash.end(); It++)		
-		It->second.sigma = newSigma[It->second.id];	
+	for (map<int, player>::iterator It=playerHash.begin(); It!=playerHash.end(); It++)
+		It->second.sigma = newSigma[It->second.id];
 }
 
 /****************************************************************
 
-calc_sigma () 
+calc_sigma ()
 
 Calculate the new sigmas for players.  This function uses the Laplace
 approximation to calculate the sigmas.
 
-TODO: deal with the possibility of the matrix inversion routine failing.  
-This can happen if the matrix is not positive definite.  
-In that case calc_sigma2() should be used as a backup. 
+TODO: deal with the possibility of the matrix inversion routine failing.
+This can happen if the matrix is not positive definite.
+In that case calc_sigma2() should be used as a backup.
 
 *****************************************************************/
 void collection::calc_sigma() {
@@ -156,9 +156,9 @@ void collection::calc_sigma() {
 	gsl_matrix *A = gsl_matrix_calloc(playerHash.size(), playerHash.size());
 	gsl_matrix *B = gsl_matrix_calloc(playerHash.size(), playerHash.size());
 
-	// Contribution from each player is 1/sigma^2	
+	// Contribution from each player is 1/sigma^2
 	for (map<int, player>::iterator playerIt = playerHash.begin(); playerIt != playerHash.end(); playerIt++) {
-		gsl_matrix_set(A, playerIt->second.index, playerIt->second.index, 1.0/playerIt->second.sigma/playerIt->second.sigma);  
+		gsl_matrix_set(A, playerIt->second.index, playerIt->second.index, 1.0/playerIt->second.sigma/playerIt->second.sigma);
 	}
 
 	for (vector<game>::iterator gameIt = gameList.begin(); gameIt != gameList.end(); gameIt++) {
@@ -202,9 +202,9 @@ void collection::calc_sigma() {
 
 /****************************************************************
 
-calc_pt () 
+calc_pt ()
 
-Calculate the logarithm of the total likelihood of a particular 
+Calculate the logarithm of the total likelihood of a particular
 set of ratings
 
 *****************************************************************/
@@ -227,8 +227,8 @@ double collection::calc_pt(const gsl_vector *v) {
 		if ( (playerHash.find(gameIt->white) == playerHash.end()) || (playerHash.find(gameIt->black) == playerHash.end()) ) {
 			cout << "Error: game record involves player with no corresponding entry in player list.  id = " << gameIt->white << ' ' << gameIt->black << endl;
 			exit(1);
-		}  
-		
+		}
+
 		rd = playerHash[gameIt->white].rating - playerHash[gameIt->black].rating - gameIt->handicapeqv;
 
 		if (gameIt->whiteWins) {
@@ -245,14 +245,14 @@ double collection::calc_pt(const gsl_vector *v) {
 
 /****************************************************************
 
-calc_pt_df () 
+calc_pt_df ()
 
 Calculate the gradient of the logarithm of the total likelihood of a particular set of ratings
 
 The likelihood function has a player contribution, which is nominally Gaussian
 (linear when a logarithm is taken) and depends only on sigma and the deviation from a player's
 seed ratings. There is also a game contribution, which depends on the result and game conditions
-of a particular contest 
+of a particular contest
 
 *****************************************************************/
 
@@ -272,7 +272,7 @@ double collection::calc_pt_df(const gsl_vector *v, gsl_vector *df) {
 		playerIt->second.rating = gsl_vector_get(v, playerIt->second.index);
 		z = (playerIt->second.rating - playerIt->second.seed)/playerIt->second.sigma;
 
-		gsl_vector_set(df, playerIt->second.index, -z/playerIt->second.sigma);	
+		gsl_vector_set(df, playerIt->second.index, -z/playerIt->second.sigma);
 	}
 
 	// Calculate the game contribution.
@@ -281,8 +281,8 @@ double collection::calc_pt_df(const gsl_vector *v, gsl_vector *df) {
 		if ( (playerHash.find(gameIt->white) == playerHash.end()) || (playerHash.find(gameIt->black) == playerHash.end()) ) {
 			cout << "Error: game record involves player with no corresponding entry in player list" << endl;
 			exit(1);
-		}  
-					
+		}
+
 		rd = playerHash[gameIt->white].rating - playerHash[gameIt->black].rating - gameIt->handicapeqv;
 
 		// Add in the appropriate contribution
@@ -301,7 +301,7 @@ double collection::calc_pt_df(const gsl_vector *v, gsl_vector *df) {
 			temp = gsl_vector_get(df, playerHash[gameIt->white].index);
 			gsl_vector_set(df, playerHash[gameIt->white].index, -dp + temp);
 
-			temp = gsl_vector_get(df, playerHash[gameIt->black].index);			
+			temp = gsl_vector_get(df, playerHash[gameIt->black].index);
 			gsl_vector_set(df, playerHash[gameIt->black].index, dp + temp);
 		}
 	}
@@ -311,9 +311,9 @@ double collection::calc_pt_df(const gsl_vector *v, gsl_vector *df) {
 
 /****************************************************************
 
-calc_ratings () 
+calc_ratings ()
 
-Calculate ratings using a multidimensional simplex method.  This 
+Calculate ratings using a multidimensional simplex method.  This
 technique is slower than the conjuagate gradient method, but it
 is more reliable.
 
@@ -321,7 +321,7 @@ This function should be slow, but foolproof.  If an error occurs here
 the program prints an error message and fails.
 
 *****************************************************************/
-int collection::calc_ratings() {
+int collection::calc_ratings(float parameters[]) {
 	const gsl_multimin_fminimizer_type *T = gsl_multimin_fminimizer_nmsimplex2;
 	gsl_multimin_fminimizer *s = NULL;
 	gsl_vector *ss, *x;
@@ -332,15 +332,15 @@ int collection::calc_ratings() {
 	double size;
 
 	for (vector<game>::iterator gameIt=gameList.begin(); gameIt!=gameList.end(); gameIt++) {
-		gameIt->calc_handicapeqv();
+		gameIt->calc_handicapeqv(parameters);
 	}
 
-	// Close the kyu/dan boundary 
+	// Close the kyu/dan boundary
 	for (map<int, player>::iterator playerIt=playerHash.begin(); playerIt!=playerHash.end(); playerIt++) {
 		if (playerIt->second.seed > 0)
 			playerIt->second.seed -= 1.0;
 		else
-			playerIt->second.seed += 1.0; 
+			playerIt->second.seed += 1.0;
 	}
 
 	/* Starting point */
@@ -359,16 +359,16 @@ int collection::calc_ratings() {
 	minex_func.n = playerHash.size();
 	minex_func.f = &my_new_f;
 	minex_func.params = (void *)this;
-	
+
 	s = gsl_multimin_fminimizer_alloc (T, playerHash.size());
-	
+
 	gsl_multimin_fminimizer_set (s, &minex_func, x, ss);
 
 	do {
 		iter++;
 		status = gsl_multimin_fminimizer_iterate(s);
 
-		if (status) 
+		if (status)
 			break;
 
 		size = gsl_multimin_fminimizer_size (s);
@@ -389,9 +389,9 @@ int collection::calc_ratings() {
 			if (playerIt->second.rating > 0)
 				playerIt->second.rating += 1.0;
 			else
-				playerIt->second.rating -= 1.0; 
-		}		
-		
+				playerIt->second.rating -= 1.0;
+		}
+
 		exit(1);
 	}
 
@@ -406,8 +406,8 @@ int collection::calc_ratings() {
 		if (playerIt->second.rating > 0)
 			playerIt->second.rating += 1.0;
 		else
-			playerIt->second.rating -= 1.0; 
-	}	
+			playerIt->second.rating -= 1.0;
+	}
 	//cout << endl;
 
 	gsl_vector_free(x);
@@ -419,37 +419,37 @@ int collection::calc_ratings() {
 
 /****************************************************************
 
-calc_ratings_fdf () 
+calc_ratings_fdf ()
 
 Calculate ratings using a conjugate gradient method.  Technique fails if the initial guess
 happens to be exactly correct, which makes 'easy' test cases a little more difficult.
 
 *****************************************************************/
 
-int collection::calc_ratings_fdf() {
+int collection::calc_ratings_fdf(float parameters[]) {
 	int status, iter=0;
-	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;	
+	const gsl_multimin_fdfminimizer_type *T = gsl_multimin_fdfminimizer_vector_bfgs2;
 	gsl_multimin_fdfminimizer *s;
 	gsl_vector *x;
 	gsl_multimin_function_fdf minex_func;
-	
+
 	// Calculate equivalent handicaps for all the games in the current ratings.
 	// This alters the effective rating difference based on the game handicap and komi.
 	for (vector<game>::iterator gameIt=gameList.begin(); gameIt!=gameList.end(); gameIt++) {
-		gameIt->calc_handicapeqv();
+		gameIt->calc_handicapeqv(parameters);
 	}
-	
-	// Close the kyu/dan boundary 
+
+	// Close the kyu/dan boundary
 	for (map<int, player>::iterator playerIt=playerHash.begin(); playerIt!=playerHash.end(); playerIt++) {
 		if (playerIt->second.seed > 0)
 			playerIt->second.seed -= 1.0;
 		else
-			playerIt->second.seed += 1.0; 
-	}		
+			playerIt->second.seed += 1.0;
+	}
 
-	// Storage vector for player ratings	
+	// Storage vector for player ratings
 	x = gsl_vector_alloc (playerHash.size());
-	
+
 	// Populate the storage vector
 	// This function crashes if we happen to seed players at a point where the gradient is
 	// identically zero.  This sounds improbable, but two new players entering the rating system
@@ -466,27 +466,27 @@ int collection::calc_ratings_fdf() {
 	minex_func.df     = &my_new_df;
 	minex_func.fdf    = &my_new_fdf;
 	minex_func.params = (void *)this;
-	
+
 	s = gsl_multimin_fdfminimizer_alloc (T, playerHash.size());
 	gsl_multimin_fdfminimizer_set(s, &minex_func, x, 2, 0.1);
-	
+
 	// Main loop.  Continue iterating until the likelihood function hits an extreme, or
-	// until an error occurs.  
+	// until an error occurs.
 	do {
-		iter++;	
+		iter++;
 		status = gsl_multimin_fdfminimizer_iterate(s);
-		
+
 		if (status) {
 			break;
 		}
-		
+
 		status = gsl_multimin_test_gradient (s->gradient, 0.001);
-		
+
 		//cout << "Finished iteration " << iter << "\tf() = " << gsl_multimin_fdfminimizer_minimum(s) << "\tnorm = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << "\tStatus = " << status << endl;
 	} while ((status == GSL_CONTINUE) && (iter < 10000));
 
 	if (status == GSL_SUCCESS) {
-		//cout << endl << "Converged to minimum. "; 	
+		//cout << endl << "Converged to minimum. ";
 		//cout << "Norm(gradient) = " << gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(s)) << endl;
 	}
 	else {
@@ -501,9 +501,9 @@ int collection::calc_ratings_fdf() {
 			if (playerIt->second.rating > 0)
 				playerIt->second.rating += 1.0;
 			else
-				playerIt->second.rating -= 1.0; 
+				playerIt->second.rating -= 1.0;
 		}
-			
+
 		return(1);
 	}
 
@@ -520,13 +520,13 @@ int collection::calc_ratings_fdf() {
 		if (playerIt->second.rating > 0)
 			playerIt->second.rating += 1.0;
 		else
-			playerIt->second.rating -= 1.0; 
-	}			
+			playerIt->second.rating -= 1.0;
+	}
 
 	gsl_vector_free(x);
 	gsl_multimin_fdfminimizer_free (s);
 
-	return 0;	
+	return 0;
 }
 
 // a - b, but knows of the [-1,1) gap
@@ -541,18 +541,18 @@ double gapAwareDifference(double a, double b) {
 
 /****************************************************************
 
-initSeeding () 
+initSeeding ()
 
 // Given players playing in a tournament, games in the tournament and the TDList data
 // prior to a tournament, set each player's seed rating and sigma and calculate
-// the handicap equivalent and sigma_px for each game.  
+// the handicap equivalent and sigma_px for each game.
 
 *****************************************************************/
-void collection::initSeeding(map<int, tdListEntry> &tdList) {
+void collection::initSeeding(map<int, tdListEntry> &tdList, float parameters[]) {
 	map<int, int> winCount;
     map<int, double> strongestDefeatedOpponentRating;
 	double deltaR;
-	
+
 	for (map<int, player>::iterator It = playerHash.begin(); It != playerHash.end(); It++) {
 		winCount[It->second.id] = 0;
         strongestDefeatedOpponentRating[It->second.id] = -1000.0;
@@ -569,26 +569,26 @@ void collection::initSeeding(map<int, tdListEntry> &tdList) {
             winner = gameIt->black;
             loser  = gameIt->white;
         }
-        
+
         winCount[winner]++;
         map<int, tdListEntry>::iterator tdListIt = tdList.find(loser);
         if (tdListIt != tdList.end())
             strongestDefeatedOpponentRating[winner] = max(strongestDefeatedOpponentRating[winner], tdListIt->second.rating);
 	}
 
-	// Loop through each player who played a game in the tournament	
+	// Loop through each player who played a game in the tournament
 	for (map<int, player>::iterator It = playerHash.begin(); It != playerHash.end(); It++) {
 
 		// Do we have a previous record for them in the TDList?
 		map<int, tdListEntry>::iterator tdListIt = tdList.find(It->second.id);
 
 		if (tdListIt == tdList.end()) {
-			// No we don't.  
+			// No we don't.
 			// Player is seeded at the rating they entered the tournament at
 			// Sigma is set according to their seed rating
-			It->second.sigma = It->second.calc_init_sigma(It->second.seed);	
+			It->second.sigma = It->second.calc_init_sigma(It->second.seed);
 		}
-		// Perhaps we have a legacy entry in the TDList with no actual rating.  
+		// Perhaps we have a legacy entry in the TDList with no actual rating.
 		// If so, treat as a reseeding
 		else if (tdListIt->second.rating == 0) {
 			It->second.sigma = It->second.calc_init_sigma(It->second.seed);
@@ -597,23 +597,26 @@ void collection::initSeeding(map<int, tdListEntry> &tdList) {
 		// If so, treat as a reseeding
 		else if (tdListIt->second.sigma == 0) {
 			It->second.sigma = It->second.calc_init_sigma(It->second.seed);
-		}	
+		}
 		// We must have a record for them in the TDList?  If so then compute a new sigma
 		// a possibly a new seed
 		else {
             deltaR = gapAwareDifference(It->second.seed, tdListIt->second.rating);
             double relativeBestWin = gapAwareDifference(strongestDefeatedOpponentRating[It->second.id], It->second.seed);
-            
+
 			// We don't let players demote themselves
+
+			//float alfa = 0.0005;
+			float alfa = parameters[2];
 			if (deltaR <= 0) {
 				It->second.seed = tdListIt->second.rating;
-				double dayCount = tdListIt->second.ratingAgeInDays;	
-				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.0005 * 0.0005 * dayCount * dayCount);	
-			}						
+				double dayCount = tdListIt->second.ratingAgeInDays;
+				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + alfa * alfa * dayCount * dayCount);
+			}
 			// Is this a self promotion by more than three stones?
 			// If so, treat as a reseeding.  Players must win at least one game
 			// to trigger the self-promotion case.  Otherwise they are just seeded
-			// at their old rating.			
+			// at their old rating.
 			else if ( (deltaR >= 3.0) && (winCount[It->second.id] > 0) && (relativeBestWin > -1.0)) {
 				It->second.seed  = It->second.seed;
 				It->second.sigma = It->second.calc_init_sigma(It->second.seed);
@@ -621,15 +624,15 @@ void collection::initSeeding(map<int, tdListEntry> &tdList) {
 			// Is it a smaller self promotion?
 			else if ( (deltaR >= 1.0) && (winCount[It->second.id] > 0) && (relativeBestWin > -1.0) ) {
 				It->second.seed = tdListIt->second.rating + 0.024746 + 0.32127 * deltaR;
-				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.256 * pow(deltaR, 1.9475)); 
+				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.256 * pow(deltaR, 1.9475));
 			}
 			else if ((winCount[It->second.id] > 0) && (relativeBestWin > -1.0))
 			 {
                 double oneDeltaRSeed = tdListIt->second.rating + 0.024746 + 0.32127;
-				double oneSigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.256); 
+				double oneSigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.256);
                 double deltaRSeed = tdListIt->second.rating;
-                double dayCount = tdListIt->second.ratingAgeInDays;	
-                double deltaRSigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.0005 * 0.0005 * dayCount * dayCount);
+                double dayCount = tdListIt->second.ratingAgeInDays;
+                double deltaRSigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + alfa * alfa * dayCount * dayCount);
                 It->second.seed  = deltaRSeed + (oneDeltaRSeed - deltaRSeed) * deltaR;
                 if (oneSigma <= 0 || deltaRSigma <= 0 )
                     It->second.sigma = 0;
@@ -638,38 +641,38 @@ void collection::initSeeding(map<int, tdListEntry> &tdList) {
 			}
 			else {
 				It->second.seed  = tdListIt->second.rating;
-				double dayCount = tdListIt->second.ratingAgeInDays;	
-				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + 0.0005 * 0.0005 * dayCount * dayCount);	
+				double dayCount = tdListIt->second.ratingAgeInDays;
+				It->second.sigma = sqrt(tdListIt->second.sigma * tdListIt->second.sigma + alfa * alfa * dayCount * dayCount);
 			}
 		}
 //		cout << "Seed: " << It->second.id << '\t' << It->second.seed << '\t' << It->second.sigma << endl;
 //		cout << "TD List: " << tdListIt->second.id << '\t' << tdListIt->second.rating << '\t' << tdListIt->second.sigma << endl;
 //		cout << endl;
 	}
-	
+
 	// Assign individual handicap equivalents and sigma_px parameters to each game.
 	for (vector<game>::iterator gameIt=gameList.begin(); gameIt!=gameList.end(); gameIt++) {
-		gameIt->calc_handicapeqv();
+		gameIt->calc_handicapeqv(parameters);
 	}
 }
 
 /****************************************************************
 
-findImprobables () 
+findImprobables ()
 
 Identify games that are highly improbable (<10% chance of being correct)
 Improbables usually indicates a data entry error or a player who h
-as improved dramatically since their last rating who needs to be reseeded. 
+as improved dramatically since their last rating who needs to be reseeded.
 
 *****************************************************************/
-void collection::findImprobables(map<int, tdListEntry> &tdList) {
+void collection::findImprobables(map<int, tdListEntry> &tdList, float parameters[]) {
 	double p, rd;
-	
+
 	for (vector<game>::iterator gameIt=gameList.begin(); gameIt!=gameList.end(); gameIt++) {
-		gameIt->calc_handicapeqv();
-		
+		gameIt->calc_handicapeqv(parameters);
+
 		rd = (playerHash[gameIt->white].seed > 0 ? playerHash[gameIt->white].seed-1 : playerHash[gameIt->white].seed+1)
-			 - (playerHash[gameIt->black].seed > 0 ? playerHash[gameIt->black].seed-1 : playerHash[gameIt->black].seed+1) 
+			 - (playerHash[gameIt->black].seed > 0 ? playerHash[gameIt->black].seed-1 : playerHash[gameIt->black].seed+1)
 			 - gameIt->handicapeqv;
 
 		if (gameIt->whiteWins) {
@@ -678,14 +681,14 @@ void collection::findImprobables(map<int, tdListEntry> &tdList) {
 		else {
 			p = gsl_sf_erfc(rd/gameIt->sigma_px/sqrt(2.0))/2.0;
 		}
-		
+
 		if (p<0.01) {
 			cout << "\tWhite: " << tdList[gameIt->white].id << " (" << gameIt->white << "), Rating = " << playerHash[gameIt->white].seed << endl;
 			cout << "\tBlack: " << tdList[gameIt->black].id << " (" << gameIt->black << "), Rating = " << playerHash[gameIt->black].seed << endl;
 			cout << "\tH/K: " << gameIt->handicap << "/" << gameIt->komi << endl;
 			cout << "\tResult: " << (gameIt->whiteWins ? "White wins" : "Black wins") << endl;
 			cout << "\tProb: " << p << endl;
-			
+
 			cout << endl;
 		}
 	}

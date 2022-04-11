@@ -1,7 +1,7 @@
 /*************************************************************************************
 
 	Copyright 2010 Philip Waldron
-	
+
     This file is part of BayRate.
 
     BayRate is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
     You should have received a copy of the GNU General Public License
     along with BayRate.  If not, see <http://www.gnu.org/licenses/>.
-    
+
 ***************************************************************************************/
 
 #include <iostream>
@@ -79,7 +79,7 @@ void readPlayersInformation(map<int, tdListEntry> &tdList, collection &tournamen
     assert(line == "PLAYERS");
 	while (line = nextLine() , line != "END_PLAYERS") {
         istringstream lineInput(line);
-        
+
         int playerId; string category;
         string previousRatingMuString , previousRatingSigmaString, previousRatingAgeInDaysString;
         lineInput >> playerId >> category >> previousRatingMuString >> previousRatingSigmaString >> previousRatingAgeInDaysString;
@@ -92,14 +92,14 @@ void readPlayersInformation(map<int, tdListEntry> &tdList, collection &tournamen
             assert(previousRatingSigmaString != NULL_STRING);
             assert(previousRatingAgeInDaysString != NULL_STRING);
             tdListEntry entry;
-            entry.id               = playerId;            
+            entry.id               = playerId;
             entry.rating           = stringToDouble(previousRatingMuString);
             entry.sigma            = stringToDouble(previousRatingSigmaString);
             entry.ratingAgeInDays  = stringToDouble(previousRatingAgeInDaysString);
             entry.ratingUpdated    = false;
             tdList[entry.id] = entry;
         }
-        
+
         player p;
         p.id = playerId;
         try {
@@ -123,7 +123,7 @@ void readGamesInformation(collection &tournamentCollection) {
         game g;
         lineInput >> g.white >> g.black >> g.handicap >> g.komi >> winner;
         g.komi++; // Ajuste porque el modelo esta ajustado con reglas chinas, y usamos japonesas.
-                
+
 		if (winner == "WHITE")
 			g.whiteWins = true;
 		else if (winner == "BLACK")
@@ -132,43 +132,49 @@ void readGamesInformation(collection &tournamentCollection) {
 			cerr << "Fatal error: unknown game winner " << winner << endl;
 			exit (1);
 		}
-				
+
 		tournamentCollection.gameList.push_back(g);
-        
+
         assert(tournamentCollection.playerHash.find(g.white) != tournamentCollection.playerHash.end());
         assert(tournamentCollection.playerHash.find(g.black) != tournamentCollection.playerHash.end());
     }
 }
 
-int main()
-{	
+int main(int argc, char **argv)
+{
  	map<int, tdListEntry> tdList;
  	map<string, bool> argList;
  	collection c;
-		
+
+	assert(argc == 3);
+	float parameters[argc];
+  for (int i = 0; i < argc; i++) {
+    parameters[i] = float(argv[i]);
+  }
+
 	readPlayersInformation(tdList, c);
     readGamesInformation(c);
-	
+
     if (!c.gameList.empty()) {
-        c.initSeeding(tdList);
-        
-        // Start with the fast rating algorithm.  If it fails, then go for the simplex method as a backup. 
-        if (c.calc_ratings_fdf() != 0) {
-            if (c.calc_ratings() != 0) {
+        c.initSeeding(tdList, parameters);
+
+        // Start with the fast rating algorithm.  If it fails, then go for the simplex method as a backup.
+        if (c.calc_ratings_fdf(parameters) != 0) {
+            if (c.calc_ratings(parameters) != 0) {
                 cerr << "Fatal error processing tournament" << endl;
-                exit(1); 
+                exit(1);
             }
         }
-        
+
         // Copy the new ratings into the internal TDList for the next tournament update
         for (map<int, player>::iterator It = c.playerHash.begin(); It != c.playerHash.end(); It++) {
-            tdList[It->second.id].id     = It->second.id;			
+            tdList[It->second.id].id     = It->second.id;
             tdList[It->second.id].rating = It->second.rating;
             tdList[It->second.id].sigma  = It->second.sigma;
             tdList[It->second.id].ratingUpdated = true;
         }
     }
-	
+
 	for (map<int, tdListEntry>::iterator tdListIt = tdList.begin(); tdListIt != tdList.end(); tdListIt++) {
 		if (tdListIt->second.ratingUpdated)
 			cout << tdListIt->second.id << '\t' << tdListIt->second.rating << '\t' << tdListIt->second.sigma << endl;

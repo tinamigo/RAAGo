@@ -19,7 +19,7 @@ from scipy.stats import norm
 #        En particular, en esta version simplificada:
 #           -- No se estan calculando los nuevos desvios finales (sigma), solo los nuevos ratings (mu).
 #           -- La "nueva probabilidad de victoria" se calcula por lo tanto con los desvios originales, y lo correcto seria usar los nuevos.
-#           -- Lo anterior cambiaria mucho el resultado de la win-prob final cuando el partido fue "batacazo" 
+#           -- Lo anterior cambiaria mucho el resultado de la win-prob final cuando el partido fue "batacazo"
 #           -- Se asume que la partida es sin ventaja, sin implementar las correciones de handicap.
 #           -- Se asume que jugador 1 y jugador 2 juegan un torneo / evento rankeado (superliga) en el que participan en EXACTAMENTE un partido (entre ellos)
 #           -- Por lo tanto, los numeros calculados son solo aproximados si los jugadores juegan mas partidos en el torneo (los cambios de rating "no se suman" simplemente)
@@ -27,10 +27,11 @@ from scipy.stats import norm
 #           -- Las variaciones de rango calculadas deberian ser correctas, asumiendo que se cumplen todas las hipotesis anteriores
 
 #sigma_px = 1.0568465 # Numero magico del modelo: en definitiva estima que el desvio estandar en la performance de un jugador es 0.7473
-sigma_px = 1.43614
+sigma_px_const = 1.43614
+#[Comentario de Martín] ^^^^^ define el beta, o sea el desvio por rendimiento / performance
 
 def match_win_prob(mu1, mu2):
-    return norm.cdf((mu1 - mu2)/sigma_px)
+    return norm.cdf((mu1 - mu2)/sigma_px_const)
 
 def density(x, mu, sigma):
     nx = (x-mu)/sigma
@@ -39,7 +40,7 @@ def density(x, mu, sigma):
 def new_ratings(mu1, mu2, sigma1, sigma2):
     # Funcion de verosimilitud bayesiana: buscamos los mu que maximizan esto, y esos son los nuevos ratings.
     # En un torneo aago, la funcion que se optimiza es de n variables (el mu de cada uno de los n jugadores), y consisten en la multiplicacion
-    # de TODOS los factores "match_win_prob" correspondientes a cada partido, y a TODOS los factores "density" correspondientes a cada jugador. 
+    # de TODOS los factores "match_win_prob" correspondientes a cada partido, y a TODOS los factores "density" correspondientes a cada jugador.
     def f(nmu1, nmu2):
         return match_win_prob(nmu1, nmu2) * density(nmu1, mu1, sigma1) * density(nmu2, mu2, sigma2)
     # Doble busqueda ternaria
@@ -117,7 +118,91 @@ def show_data(mu1, mu2, sigma1, sigma2, age_ranking_1_in_days, age_ranking_2_in_
     print("Estimated new probability for player 1 win: {}".format(win_chance(nmu1, nmu2, sigma1, sigma2))) # Se deberian usar los desvios finales, que son distintos... pero no los calculamos aca.
 
 
-show_data(2, 2, 1.0 , 1.0, 0, 0)
+#show_data(2, 2, 1.0 , 1.0, 0, 0)
 #show_data(3.748, -1.136, 0.219 , 0.465, 0, 0)
 #show_data(-1.136, 3.748, 0.465, 0.219 , 0, 0)
 #0.381
+
+
+###################################################################################################################################################
+###################################################################################################################################################
+#### desde acá programado por Martín Amigo en base a lo de arriba, completando en base al paper de AGA https://www.usgo.org/sites/default/files/pdf/AGARatings-Math.pdf
+###################################################################################################################################################
+###################################################################################################################################################
+# reminder: el jugador 1 es el que gana
+# la diferencia con lo de arriba es que agrego handicap y komi, y algunos detalles relativos a eso que aparecen en las formulas del paper y arriba no
+
+
+#esto calcula la evidencia: la integral del likelihood
+# lo hace con una grilla. calcula los valores de handicap para cada punto, los multiplica por el ancho del rectangulo (en realidad multiplica al final)
+# y los suma
+def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters):
+    STEPS = 51
+    assert(STEPS % 2 == 1)
+    KSIGMAS = 6 # Integramos hasta KSIGMAS desvios
+    ret = 0.0
+    A = -STEPS//2
+    B = A + STEPS
+    gap1 = 2 * KSIGMAS * sigma1 / float(STEPS)
+    gap2 = 2 * KSIGMAS * sigma2 / float(STEPS)
+    totalp = 0.0
+    for i in range(A, B):
+        for j in range(A,B):
+            nmu1 = mu1 + i * gap1
+            nmu2 = mu2 + j * gap2
+            p = density(nmu1, mu1, sigma1) * density(nmu2, mu2, sigma2)
+            totalp += p
+            mwp = match_win_prob_hk(nmu1, nmu2, handicap, komi, parameters, sigma1, sigma2)
+            ret += p * mwp
+            # print("match_win_prob_hk")
+            # print(mwp)
+
+    assert(abs(totalp * gap1 * gap2 - 1.0) < 0.01) # La probabilidad total tiene que dar 1!
+    return ret * gap1 * gap2
+
+# probabilidad de ganar de un jugador con mu1 contra uno de mu2, con ese handicap y komi (asumiendo el peso correspondiente a omicron para handicap)
+def match_win_prob_hk(mu1, mu2, handicap, komi, parameters, sigma1, sigma2):
+    # print("Params")
+    # print(mu1, mu2, handicap, komi, parameters, sigma1, sigma2)
+    # print("Numerador")
+    # print(mu1 - mu2 - d(handicap, komi, parameters))
+    # print("Denominador")
+    # print(sigma_px(handicap, komi, sigma1, sigma2))
+    return norm.cdf((mu1 - mu2 - d(handicap, komi, parameters))/sigma_px(handicap, komi, sigma1, sigma2))
+
+def d(handicap, komi, parameters):
+    if handicap == 0 or handicap == 1:
+        return (0.580 - (0.0757*komi))
+    else:
+        return (parameters[0] *  handicap + parameters[1] - (0.0757*komi))
+
+def sigma_px(handicap, komi, sigma1, sigma2):
+    # if handicap == 0 or handicap == 1:
+    #     return (1.0649 - (0.0021976*komi) + 0.00014984*(komi**2))
+    # else:
+    #     return ((-0.0035169*komi) + b(handicap, parameters))
+    return sqrt(sigma1**2 + 1 + sigma2**2 + 1)
+    #los uno vienen del beta
+
+def b(handicap):
+    #return (parameters[0] * handicap + parameters[1])
+    if handicap == 2:
+        return (1.13672)
+    elif handicap == 3:
+        return (1.18795)
+    elif handicap == 4:
+        return (1.22841)
+    elif handicap == 5:
+        return (1.27457)
+    elif handicap == 6:
+        return (1.31978)
+    elif handicap == 7:
+        return (1.35881)
+    elif handicap == 8:
+        return (1.39782)
+    elif handicap == 9:
+        return (1.43614)
+    else:
+        print("ERROR: HANDICAP MAYOR A 9 O NEGATIVO")
+
+#win_chance_hk(-13.855, 1.77653, 0.457907, 0.240014, 9.0, 0.5, [1,0, 0.0005])
