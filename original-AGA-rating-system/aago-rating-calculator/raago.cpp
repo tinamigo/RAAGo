@@ -149,7 +149,7 @@ int main(int argc, char **argv)
   assert(argc == 4); // son 3 + 1  por el nombre de la funcion
 
 	float parameters[argc];
-  for (int i = 0; i < argc; i++) {
+  for (int i = 1; i < argc; i++) {
     parameters[i] = (float)strtod(argv[i],NULL);
   }
 

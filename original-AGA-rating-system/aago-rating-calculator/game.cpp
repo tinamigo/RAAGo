@@ -41,9 +41,45 @@ conditions of this game.
 
 *****************************************************************/
 void game::calc_handicapeqv(float parameters[]) {
-	sigma_px = 1;
-	handicapeqv = parameters[0] * handicap + parameters[1] - 0.0757*komi;
-
+	//sigma_px = 1;
+	if (handicap == 0) {
+		handicapeqv = 0.580 - 0.0757 * komi;
+		sigma_px = 1.0649 - 0.0021976 * komi + 0.00014984 * komi * komi;
+	}
+	else if (handicap == 1) {
+		handicapeqv = 0.580 - 0.0757 * (komi);
+		sigma_px = 1.0649 - 0.0021976 * (komi) + 0.00014984 * (komi) * (komi);
+	}
+	else {
+		handicapeqv = parameters[1] * handicap + parameters[2] - 0.0757*komi;
+		sigma_px = -0.0035169 * komi;
+		switch (handicap) {
+			case 2:
+				sigma_px += 1.13672;
+				break;
+			case 3:
+				sigma_px += 1.18795;
+				break;
+			case 4:
+				sigma_px += 1.22841;
+				break;
+			case 5:
+				sigma_px += 1.27457;
+				break;
+			case 6:
+				sigma_px += 1.31978;
+				break;
+			case 7:
+				sigma_px += 1.35881;
+				break;
+			case 8:
+				sigma_px += 1.39782;
+				break;
+			case 9:
+				sigma_px += 1.43614;
+				break;
+		}
+	}
 		// switch (handicap) {
 		// 	case 2:
 		// 		sigma_px += 1.13672;
@@ -70,5 +106,5 @@ void game::calc_handicapeqv(float parameters[]) {
 		// 		sigma_px += 1.43614;
 		// 		break;
 		// }
-	
+
 }

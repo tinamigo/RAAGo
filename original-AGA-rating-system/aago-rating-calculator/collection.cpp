@@ -607,7 +607,7 @@ void collection::initSeeding(map<int, tdListEntry> &tdList, float parameters[]) 
 			// We don't let players demote themselves
 
 			//float alfa = 0.0005;
-			float alfa = parameters[2];
+			float alfa = parameters[3];
 			if (deltaR <= 0) {
 				It->second.seed = tdListIt->second.rating;
 				double dayCount = tdListIt->second.ratingAgeInDays;
