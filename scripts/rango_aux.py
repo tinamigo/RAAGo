@@ -136,7 +136,7 @@ def show_data(mu1, mu2, sigma1, sigma2, age_ranking_1_in_days, age_ranking_2_in_
 #esto calcula la evidencia: la integral del likelihood
 # lo hace con una grilla. calcula los valores de handicap para cada punto, los multiplica por el ancho del rectangulo (en realidad multiplica al final)
 # y los suma
-def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters):
+def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters, black_win):
     STEPS = 51
     assert(STEPS % 2 == 1)
     KSIGMAS = 6 # Integramos hasta KSIGMAS desvios
@@ -152,7 +152,7 @@ def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters):
             nmu2 = mu2 + j * gap2
             p = density(nmu1, mu1, sigma1) * density(nmu2, mu2, sigma2)
             totalp += p
-            mwp = match_win_prob_hk(nmu1, nmu2, handicap, komi, parameters, sigma1, sigma2)
+            mwp = match_win_prob_hk(nmu1, nmu2, handicap, komi, parameters, black_win, sigma1, sigma2)
             ret += p * mwp
             # print("match_win_prob_hk")
             # print(mwp)
@@ -161,14 +161,19 @@ def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters):
     return ret * gap1 * gap2
 
 # probabilidad de ganar de un jugador con mu1 contra uno de mu2, con ese handicap y komi (asumiendo el peso correspondiente a omicron para handicap)
-def match_win_prob_hk(mu1, mu2, handicap, komi, parameters, sigma1, sigma2):
+def match_win_prob_hk(mu1, mu2, handicap, komi, parameters, black_win, sigma1, sigma2):
     # print("Params")
     # print(mu1, mu2, handicap, komi, parameters, sigma1, sigma2)
     # print("Numerador")
     # print(mu1 - mu2 - d(handicap, komi, parameters))
     # print("Denominador")
     # print(sigma_px(handicap, komi, sigma1, sigma2))
-    return norm.cdf((mu1 - mu2 - d(handicap, komi, parameters))/sigma_px(handicap, komi, sigma1, sigma2))
+    if black_win == 'False': #mu1 es white, mu2 es black. el handicap se suma a mu2
+        return norm.cdf((mu1 - mu2 - d(handicap, komi, parameters))/sigma_px(handicap, komi, sigma1, sigma2))
+    elif black_win == 'True': #mu1 es black, mu2 es white. el handicap se suma a mu1
+        return norm.cdf((mu1 + d(handicap, komi, parameters) - mu2)/sigma_px(handicap, komi, sigma1, sigma2))
+    else:
+        print("ERROR: black_win no es True ni False")
 
 def d(handicap, komi, parameters):
     if handicap == 0 or handicap == 1:
@@ -177,15 +182,14 @@ def d(handicap, komi, parameters):
         return (parameters[0] *  handicap + parameters[1] - (0.0757*komi))
 
 def sigma_px(handicap, komi, sigma1, sigma2):
-    # if handicap == 0 or handicap == 1:
-    #     return (1.0649 - (0.0021976*komi) + 0.00014984*(komi**2))
-    # else:
-    #     return ((-0.0035169*komi) + b(handicap, parameters))
-    return sqrt(sigma1**2 + 1 + sigma2**2 + 1)
+    if handicap == 0 or handicap == 1:
+        return (1.0649 - (0.0021976*komi) + 0.00014984*(komi**2))
+    else:
+        return ((-0.0035169*komi) + b(handicap))
+    #return sqrt(sigma1**2 + 1 + sigma2**2 + 1)
     #los uno vienen del beta
 
 def b(handicap):
-    #return (parameters[0] * handicap + parameters[1])
     if handicap == 2:
         return (1.13672)
     elif handicap == 3:
@@ -206,3 +210,22 @@ def b(handicap):
         print("ERROR: HANDICAP MAYOR A 9 O NEGATIVO")
 
 #win_chance_hk(-13.855, 1.77653, 0.457907, 0.240014, 9.0, 0.5, [1,0, 0.0005])
+
+# for handicap_weight in [1,-1,3,-3]:
+#     komi = 0.5
+#     handicap = 9
+#     parameters = [handicap_weight, 0, 0.0005]
+#     print("Peso de handicap: " + str(handicap_weight))
+#     print("Caso 1:")
+#     mu1 = -20.4490
+#     mu2 = 3.69153
+#     sigma1 = 1
+#     sigma2 = 1
+#     black_win = 'True'
+#     ev_result = win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters, black_win)
+#     print("Evidencia: " + str(ev_result))
+
+# print("Ines Perado")
+# print(win_chance(-20,5,1,1))
+# print("Esperado")
+# print(win_chance(5,-20,1,1))
