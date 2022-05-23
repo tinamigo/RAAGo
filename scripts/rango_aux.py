@@ -133,10 +133,13 @@ def show_data(mu1, mu2, sigma1, sigma2, age_ranking_1_in_days, age_ranking_2_in_
 # la diferencia con lo de arriba es que agrego handicap y komi, y algunos detalles relativos a eso que aparecen en las formulas del paper y arriba no
 
 
-#esto calcula la evidencia: la integral del likelihood
+#esta función calcula la evidencia: la integral del likelihood
 # lo hace con una grilla. calcula los valores de handicap para cada punto, los multiplica por el ancho del rectangulo (en realidad multiplica al final)
 # y los suma
+# OJO: Toma los mus con el gap incluido y se lo corrige. 
 def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters, black_win):
+    mu1 = fix_gap(mu1)
+    mu2 = fix_gap(mu2)
     STEPS = 51
     assert(STEPS % 2 == 1)
     KSIGMAS = 6 # Integramos hasta KSIGMAS desvios
@@ -159,6 +162,12 @@ def win_chance_hk(mu1, mu2, sigma1, sigma2, handicap, komi, parameters, black_wi
 
     assert(abs(totalp * gap1 * gap2 - 1.0) < 0.01) # La probabilidad total tiene que dar 1!
     return ret * gap1 * gap2
+
+def fix_gap(mu):
+    if mu > 0 :
+        return mu-1
+    else:
+        return mu+1
 
 # probabilidad de ganar de un jugador con mu1 contra uno de mu2, con ese handicap y komi (asumiendo el peso correspondiente a omicron para handicap)
 def match_win_prob_hk(mu1, mu2, handicap, komi, parameters, black_win, sigma1, sigma2):
